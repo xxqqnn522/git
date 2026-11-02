@@ -39,7 +39,7 @@ sprites.onload=()=>{
 };
 sprites.onerror=()=>{characterStatus.textContent='角色图片加载失败，请检查 assets/characters.png 后刷新。';};
 sprites.src='assets/characters.png';
-const ground = 390, maxCharge = 1100;
+const ground = 390, maxCharge = 1500;
 function reset() {
   platforms = [{x:180,w:140},{x:430,w:135}];
   player = {x:180,y:ground}; score = 0; state = 'ready'; camera = 0; flight = null;
