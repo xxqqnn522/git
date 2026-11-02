@@ -6,6 +6,39 @@ let best = 0;
 try { best = Number(localStorage.getItem('milk-hop-best')) || 0; } catch {}
 bestEl.textContent = best;
 let platforms, player, score, state, chargeStart, flight, camera, lastTime;
+const characters = [
+  {name:'蛋仔',crop:[45,275,370,380]},
+  {name:'大耳鼠',crop:[475,240,370,415]},
+  {name:'胖胖鸟',crop:[880,60,365,610]},
+  {name:'开心狗',crop:[1325,235,385,420]},
+  {name:'小黄鸡',crop:[1760,220,380,435]}
+];
+let selectedCharacter=0;
+try { const saved=Number(localStorage.getItem('milk-hop-character')); if(Number.isInteger(saved)&&saved>=0&&saved<characters.length)selectedCharacter=saved; } catch {}
+const sprites=new Image();
+const characterStatus=document.querySelector('#character-status');
+const characterButtons=characters.map((character,index)=>{
+  const button=document.createElement('button');button.type='button';button.className='character-option';
+  button.setAttribute('aria-label',`选择${character.name}`);button.setAttribute('aria-pressed',String(index===selectedCharacter));
+  const preview=document.createElement('canvas');preview.width=96;preview.height=96;preview.setAttribute('aria-hidden','true');
+  const label=document.createElement('span');label.textContent=character.name;button.append(preview,label);
+  button.addEventListener('click',()=>{
+    selectedCharacter=index;
+    characterButtons.forEach((item,i)=>item.setAttribute('aria-pressed',String(i===index)));
+    characterStatus.textContent=`当前搭档：${character.name} · 五位角色能力相同`;
+    try {localStorage.setItem('milk-hop-character',String(index));} catch {}
+  });
+  document.querySelector('#characters').append(button);return button;
+});
+sprites.onload=()=>{
+  characters.forEach((character,index)=>{
+    const c=character.crop,h=84,w=c[2]/c[3]*h;
+    characterButtons[index].querySelector('canvas').getContext('2d').drawImage(sprites,...c,(96-w)/2,96-h,w,h);
+  });
+  characterStatus.textContent=`当前搭档：${characters[selectedCharacter].name} · 五位角色能力相同`;
+};
+sprites.onerror=()=>{characterStatus.textContent='角色图片加载失败，请检查 assets/characters.png 后刷新。';};
+sprites.src='assets/characters.png';
 const ground = 390, maxCharge = 1100;
 function reset() {
   platforms = [{x:180,w:140},{x:430,w:135}];
@@ -38,12 +71,11 @@ function cloud(x,y,s){ctx.fillStyle='#ffffff99';ctx.beginPath();ctx.ellipse(x,y,
 function baby(x,y,squash){
  ctx.save();ctx.translate(x,y);ctx.scale(1,1-squash*.18);
  ctx.fillStyle='#ced7bf';ctx.beginPath();ctx.ellipse(0,7,25,7,0,0,Math.PI*2);ctx.fill();
- roundRect(-20,-33,40,33,13,'#fffdf2');roundRect(-22,-6,17,10,5,'#edb99c');roundRect(5,-6,17,10,5,'#edb99c');
- ctx.fillStyle='#f5caaa';ctx.beginPath();ctx.arc(0,-48,27,0,Math.PI*2);ctx.fill();
- ctx.strokeStyle='#6e6554';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(-3,-73);ctx.quadraticCurveTo(12,-87,9,-70);ctx.stroke();
- ctx.fillStyle='#4b5347';for(const xx of [-9,9]){ctx.beginPath();ctx.arc(xx,-49,2.5,0,7);ctx.fill();}
- ctx.fillStyle='#eda18d';for(const xx of [-17,17]){ctx.beginPath();ctx.ellipse(xx,-41,5,3,0,0,7);ctx.fill();}
- ctx.fillStyle='#fff9ed';ctx.beginPath();ctx.arc(0,-37,7,0,7);ctx.fill();ctx.fillStyle='#91b8a0';ctx.beginPath();ctx.arc(0,-37,4,0,7);ctx.fill();ctx.restore();
+ if(sprites.complete && sprites.naturalWidth){
+   const c=characters[selectedCharacter].crop,height=90,width=c[2]/c[3]*height;
+   ctx.drawImage(sprites,...c,-width/2,-height,width,height);
+ }else{roundRect(-20,-55,40,55,20,'#f3cd50');}
+ ctx.restore();
 }
 function frame(now){
  const dt=Math.min((now-(lastTime||now))/1000,.05); lastTime=now;
