@@ -7,11 +7,11 @@ try { best = Number(localStorage.getItem('milk-hop-best')) || 0; } catch {}
 bestEl.textContent = best;
 let platforms, player, score, state, chargeStart, flight, camera, lastTime;
 const characters = [
-  {name:'蛋仔',crop:[45,275,370,380]},
-  {name:'大耳鼠',crop:[475,240,370,415]},
-  {name:'胖胖鸟',crop:[880,60,365,610]},
-  {name:'开心狗',crop:[1325,235,385,420]},
-  {name:'小黄鸡',crop:[1760,220,380,435]}
+  {name:'奶蛋',crop:[45,275,370,380]},
+  {name:'奶鼠',crop:[475,240,370,415]},
+  {name:'奶娃',crop:[880,60,365,610]},
+  {name:'奶狗',crop:[1325,235,385,420]},
+  {name:'奶鸡',crop:[1760,220,380,435]}
 ];
 let selectedCharacter=0;
 try { const saved=Number(localStorage.getItem('milk-hop-character')); if(Number.isInteger(saved)&&saved>=0&&saved<characters.length)selectedCharacter=saved; } catch {}
