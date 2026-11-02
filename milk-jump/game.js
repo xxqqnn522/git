@@ -40,8 +40,14 @@ sprites.onload=()=>{
 sprites.onerror=()=>{characterStatus.textContent='角色图片加载失败，请检查 assets/characters.png 后刷新。';};
 sprites.src='assets/characters.png';
 const ground = 390, maxCharge = 1500;
+// 画布中 y 越小，位置越高。限制相邻高度差，避免平台变化太突然。
+function nextPlatform(previous) {
+  const y = Math.max(300, Math.min(430, previous.y + (Math.random() * 120 - 60)));
+  return {x:previous.x+190+Math.random()*140, y, w:105+Math.random()*35};
+}
 function reset() {
-  platforms = [{x:180,w:140},{x:430,w:135}];
+  platforms = [{x:180,y:ground,w:140}];
+  platforms.push(nextPlatform(platforms[0]));
   player = {x:180,y:ground}; score = 0; state = 'ready'; camera = 0; flight = null;
   scoreEl.textContent = score; setPower(0);
   message.textContent = '准备好了吗？按住蓄力，松开起跳！';
@@ -51,7 +57,7 @@ function begin() { if (state !== 'ready') return; state = 'charging'; chargeStar
 function release() {
   if (state !== 'charging') return;
   const strength = Math.min((performance.now()-chargeStart)/maxCharge,1);
-  flight = {start:performance.now(),x:player.x, distance:60+strength*360,duration:700};
+  flight = {start:performance.now(),x:player.x,y:player.y, targetY:platforms[platforms.length-1].y, distance:60+strength*360,duration:700};
   state = 'jumping'; setPower(0); message.textContent = '呼——飞起来啦！';
 }
 function finish() {
@@ -61,7 +67,8 @@ function finish() {
     score += perfect ? 2 : 1; scoreEl.textContent = score;
     if (score>best) { best=score; bestEl.textContent=best; try { localStorage.setItem('milk-hop-best',String(best)); } catch {} }
     message.textContent = perfect ? '正中饼干！漂亮一跳 +2' : '稳稳落地！再来一跳 +1';
-    platforms.push({x:target.x+190+Math.random()*140,w:105+Math.random()*35});
+    player.y = target.y;
+    platforms.push(nextPlatform(target));
     if(platforms.length>5) platforms.shift();
     state='ready';
   } else { state='falling'; flight={start:performance.now()}; message.textContent='哎呀，踩空啦！点击「重新开始」再试一次。'; }
@@ -81,14 +88,14 @@ function frame(now){
  const dt=Math.min((now-(lastTime||now))/1000,.05); lastTime=now;
  let strength=state==='charging'?Math.min((now-chargeStart)/maxCharge,1):0;
  if(state==='charging')setPower(strength);
- if(state==='jumping') { const t=Math.min((now-flight.start)/flight.duration,1);player.x=flight.x+flight.distance*t;player.y=ground-Math.sin(t*Math.PI)*155;if(t===1)finish(); }
+ if(state==='jumping') { const t=Math.min((now-flight.start)/flight.duration,1);player.x=flight.x+flight.distance*t;player.y=flight.y+(flight.targetY-flight.y)*t-Math.sin(t*Math.PI)*155;if(t===1)finish(); }
  if(state==='falling'){player.y+=430*dt;if(player.y>650)state='over';}
  const desired=Math.max(0,(state==='jumping'?flight.x:player.x)-230);camera+=(desired-camera)*Math.min(1,dt*6);
  ctx.clearRect(0,0,960,540);ctx.fillStyle='#e8efdf';ctx.fillRect(0,0,960,540);
  ctx.fillStyle='#dce7d0';ctx.beginPath();ctx.arc(820,540,250,Math.PI,0);ctx.fill();
  cloud(140-camera*.12,120,1.1);cloud(540-camera*.08,190,.75);cloud(855-camera*.1,100,1.3);
  ctx.fillStyle='#b5c6a6';ctx.font='16px Georgia';ctx.fillText('✦',720,240);ctx.fillText('✦',290,200);
- for(const p of platforms){const x=p.x-camera;ctx.fillStyle='#ced9bd';ctx.beginPath();ctx.ellipse(x,ground+55,p.w*.6,13,0,0,7);ctx.fill();roundRect(x-p.w/2,ground,p.w,34,12,'#bb8c59');roundRect(x-p.w/2,ground-9,p.w,29,12,'#e7c28d');ctx.strokeStyle='#d2aa72';ctx.lineWidth=2;ctx.setLineDash([3,6]);ctx.strokeRect(x-p.w/2+10,ground-1,p.w-20,12);ctx.setLineDash([]);for(let i=-1;i<=1;i++){ctx.fillStyle='#bc915f';ctx.beginPath();ctx.arc(x+i*25,ground+5,2.5,0,7);ctx.fill();}}
+ for(const p of platforms){const x=p.x-camera,y=p.y;ctx.fillStyle='#ced9bd';ctx.beginPath();ctx.ellipse(x,y+55,p.w*.6,13,0,0,7);ctx.fill();roundRect(x-p.w/2,y,p.w,34,12,'#bb8c59');roundRect(x-p.w/2,y-9,p.w,29,12,'#e7c28d');ctx.strokeStyle='#d2aa72';ctx.lineWidth=2;ctx.setLineDash([3,6]);ctx.strokeRect(x-p.w/2+10,y-1,p.w-20,12);ctx.setLineDash([]);for(let i=-1;i<=1;i++){ctx.fillStyle='#bc915f';ctx.beginPath();ctx.arc(x+i*25,y+5,2.5,0,7);ctx.fill();}}
  baby(player.x-camera,player.y,strength);
  ctx.fillStyle='#8c9f80';ctx.font='12px "Microsoft YaHei"';ctx.fillText('饼干之间的距离不同，记得调整蓄力时间哦',28,510);
  requestAnimationFrame(frame);
