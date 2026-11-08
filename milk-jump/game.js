@@ -40,6 +40,8 @@ function laughPose(now) {
 }
 function interactWithCharacter() {
   if (state !== 'ready') return;
+  // 动画播放期间的重复点击不重置画面或声音。
+  if(selectedCharacter===2 && laughPose(performance.now()).active) return;
   stopCharacterInteraction();
   if(selectedCharacter===2) laughStart=performance.now();
   else bounceStart = performance.now();
