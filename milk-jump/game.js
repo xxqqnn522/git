@@ -13,6 +13,20 @@ const characters = [
   {name:'奶狗',crop:[1325,235,385,420]},
   {name:'奶鸡',crop:[1760,220,380,435]}
 ];
+const voices = ['egg','mouse','baby','dog','chicken'].map(id => {
+  const audio = new Audio('assets/audio/' + id + '.wav');
+  audio.preload = 'auto';
+  return audio;
+});
+let bounceStart = null;
+function interactWithCharacter() {
+  if (state !== 'ready') return;
+  bounceStart = performance.now();
+  voices.forEach(audio => { audio.pause(); audio.currentTime = 0; });
+  voices[selectedCharacter].play().catch(() => {
+    characterStatus.textContent = '声音播放失败，请检查浏览器声音设置或刷新后再试。';
+  });
+}
 let selectedCharacter=0;
 try { const saved=Number(localStorage.getItem('milk-hop-character')); if(Number.isInteger(saved)&&saved>=0&&saved<characters.length)selectedCharacter=saved; } catch {}
 const sprites=new Image();
@@ -27,6 +41,7 @@ const characterButtons=characters.map((character,index)=>{
     characterButtons.forEach((item,i)=>item.setAttribute('aria-pressed',String(i===index)));
     characterStatus.textContent=`当前搭档：${character.name} · 五位角色能力相同`;
     try {localStorage.setItem('milk-hop-character',String(index));} catch {}
+    interactWithCharacter();
   });
   document.querySelector('#characters').append(button);return button;
 });
@@ -49,11 +64,13 @@ function reset() {
   platforms = [{x:180,y:ground,w:140}];
   platforms.push(nextPlatform(platforms[0]));
   player = {x:180,y:ground}; score = 0; state = 'ready'; camera = 0; flight = null;
+  bounceStart = null;
+  voices.forEach(audio => { audio.pause(); audio.currentTime = 0; });
   scoreEl.textContent = score; setPower(0);
-  message.textContent = '准备好了吗？按住蓄力，松开起跳！';
+  message.textContent = '准备好了吗？按住绿色按钮蓄力，松开起跳！';
 }
 function setPower(value) { power.style.width = `${value * 100}%`; document.querySelector('.meter').setAttribute('aria-valuenow', Math.round(value * 100)); }
-function begin() { if (state !== 'ready') return; state = 'charging'; chargeStart = performance.now(); }
+function begin() { if (state !== 'ready') return; bounceStart = null; state = 'charging'; chargeStart = performance.now(); }
 function release() {
   if (state !== 'charging') return;
   const strength = Math.min((performance.now()-chargeStart)/maxCharge,1);
@@ -96,18 +113,47 @@ function frame(now){
  cloud(140-camera*.12,120,1.1);cloud(540-camera*.08,190,.75);cloud(855-camera*.1,100,1.3);
  ctx.fillStyle='#b5c6a6';ctx.font='16px Georgia';ctx.fillText('✦',720,240);ctx.fillText('✦',290,200);
  for(const p of platforms){const x=p.x-camera,y=p.y;ctx.fillStyle='#ced9bd';ctx.beginPath();ctx.ellipse(x,y+55,p.w*.6,13,0,0,7);ctx.fill();roundRect(x-p.w/2,y,p.w,34,12,'#bb8c59');roundRect(x-p.w/2,y-9,p.w,29,12,'#e7c28d');ctx.strokeStyle='#d2aa72';ctx.lineWidth=2;ctx.setLineDash([3,6]);ctx.strokeRect(x-p.w/2+10,y-1,p.w-20,12);ctx.setLineDash([]);for(let i=-1;i<=1;i++){ctx.fillStyle='#bc915f';ctx.beginPath();ctx.arc(x+i*25,y+5,2.5,0,7);ctx.fill();}}
- baby(player.x-camera,player.y,strength);
+ const bounceProgress = bounceStart === null ? 1 : Math.min((now-bounceStart)/450,1);
+ const bounceOffset = state === 'ready' ? Math.sin(bounceProgress*Math.PI)*32 : 0;
+ if(bounceProgress === 1) bounceStart = null;
+ baby(player.x-camera,player.y-bounceOffset,strength);
  ctx.fillStyle='#8c9f80';ctx.font='12px "Microsoft YaHei"';ctx.fillText('饼干之间的距离不同，记得调整蓄力时间哦',28,510);
  requestAnimationFrame(frame);
 }
-for(const element of [canvas,document.querySelector('#jump')]){
- element.addEventListener('pointerdown',e=>{if(e.button!==0)return;e.preventDefault();element.setPointerCapture(e.pointerId);begin();});
- element.addEventListener('pointerup',release);
- element.addEventListener('pointercancel',()=>{if(state==='charging'){state='ready';setPower(0);}});
- element.addEventListener('lostpointercapture',()=>{if(state==='charging'){state='ready';setPower(0);}});
+const jumpButton = document.querySelector('#jump');
+let jumpPointer = null;
+jumpButton.addEventListener('pointerdown',e=>{
+  if(e.button!==0 || state!=='ready' || jumpPointer!==null)return;
+  e.preventDefault();jumpPointer=e.pointerId;jumpButton.setPointerCapture(e.pointerId);begin();
+});
+jumpButton.addEventListener('pointerup',e=>{
+  if(e.pointerId!==jumpPointer)return;
+  jumpPointer=null;release();
+});
+function cancelCharge(){
+  jumpPointer=null;
+  if(state==='charging'){state='ready';setPower(0);}
 }
-window.addEventListener('keydown',e=>{if(e.code==='Space' && !['BUTTON','INPUT','TEXTAREA'].includes(document.activeElement.tagName)){e.preventDefault();if(!e.repeat)begin();}});
-window.addEventListener('keyup',e=>{if(e.code==='Space'){e.preventDefault();release();}});
-window.addEventListener('blur',()=>{if(state==='charging'){state='ready';setPower(0);}});
+jumpButton.addEventListener('pointercancel',cancelCharge);
+jumpButton.addEventListener('lostpointercapture',cancelCharge);
+// 支持键盘操作绿色按钮；页面其他位置的空格键不再触发跳跃。
+jumpButton.addEventListener('keydown',e=>{
+  if(e.code==='Space'||e.code==='Enter'){e.preventDefault();if(!e.repeat)begin();}
+});
+jumpButton.addEventListener('keyup',e=>{
+  if(e.code==='Space'||e.code==='Enter'){e.preventDefault();release();}
+});
+jumpButton.addEventListener('blur',cancelCharge);
+canvas.addEventListener('click',e=>{
+  if(state!=='ready')return;
+  const bounds=canvas.getBoundingClientRect();
+  const x=(e.clientX-bounds.left)*canvas.width/bounds.width;
+  const y=(e.clientY-bounds.top)*canvas.height/bounds.height;
+  const crop=characters[selectedCharacter].crop,width=crop[2]/crop[3]*90;
+  const progress=bounceStart===null?1:Math.min((performance.now()-bounceStart)/450,1);
+  const feet=player.y-Math.sin(progress*Math.PI)*32;
+  if(Math.abs(x-(player.x-camera))<=width/2 && y>=feet-90 && y<=feet+5)interactWithCharacter();
+});
+window.addEventListener('blur',cancelCharge);
 document.querySelector('#restart').addEventListener('click',reset);
 reset();requestAnimationFrame(frame);
