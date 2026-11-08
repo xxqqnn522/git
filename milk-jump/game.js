@@ -14,15 +14,31 @@ const characters = [
   {name:'奶鸡',crop:[1760,220,380,435]}
 ];
 const voices = ['egg','mouse','baby','dog','chicken'].map(id => {
-  const audio = new Audio('assets/audio/' + id + '.wav');
+  const audio = new Audio(id === 'baby' ? 'assets/audio/baby-laugh.m4a' : 'assets/audio/' + id + '.wav');
   audio.preload = 'auto';
   return audio;
 });
 let bounceStart = null;
+let laughStart = null;
+function stopCharacterInteraction() {
+  bounceStart = null;
+  laughStart = null;
+  voices.forEach(audio => { audio.pause(); audio.currentTime = 0; });
+}
+function laughPose(now) {
+  if(laughStart === null) return {active:false,offset:0,rotation:0,scale:1};
+  const elapsed=now-laughStart;
+  if(elapsed>=13200){laughStart=null;return {active:false,offset:0,rotation:0,scale:1};}
+  const envelope=Math.min(elapsed/250,1,(13200-elapsed)/400);
+  return {active:true,offset:Math.abs(Math.sin(elapsed/85))*9*envelope,
+    rotation:(Math.sin(elapsed/420)*0.13+Math.sin(elapsed/48)*0.018)*envelope,
+    scale:1+Math.sin(elapsed/85)*0.045*envelope};
+}
 function interactWithCharacter() {
   if (state !== 'ready') return;
-  bounceStart = performance.now();
-  voices.forEach(audio => { audio.pause(); audio.currentTime = 0; });
+  stopCharacterInteraction();
+  if(selectedCharacter===2) laughStart=performance.now();
+  else bounceStart = performance.now();
   voices[selectedCharacter].play().catch(() => {
     characterStatus.textContent = '声音播放失败，请检查浏览器声音设置或刷新后再试。';
   });
@@ -41,8 +57,7 @@ const characterButtons=characters.map((character,index)=>{
     characterButtons.forEach((item,i)=>item.setAttribute('aria-pressed',String(i===index)));
     characterStatus.textContent=`当前搭档：${character.name} · 五位角色能力相同`;
     try {localStorage.setItem('milk-hop-character',String(index));} catch {}
-    bounceStart = null;
-    voices.forEach(audio => { audio.pause(); audio.currentTime = 0; });
+    stopCharacterInteraction();
   });
   document.querySelector('#characters').append(button);return button;
 });
@@ -65,13 +80,12 @@ function reset() {
   platforms = [{x:180,y:ground,w:140}];
   platforms.push(nextPlatform(platforms[0]));
   player = {x:180,y:ground}; score = 0; state = 'ready'; camera = 0; flight = null;
-  bounceStart = null;
-  voices.forEach(audio => { audio.pause(); audio.currentTime = 0; });
+  stopCharacterInteraction();
   scoreEl.textContent = score; setPower(0);
   message.textContent = '准备好了吗？按住绿色按钮蓄力，松开起跳！';
 }
 function setPower(value) { power.style.width = `${value * 100}%`; document.querySelector('.meter').setAttribute('aria-valuenow', Math.round(value * 100)); }
-function begin() { if (state !== 'ready') return; bounceStart = null; state = 'charging'; chargeStart = performance.now(); }
+function begin() { if (state !== 'ready') return; stopCharacterInteraction(); state = 'charging'; chargeStart = performance.now(); }
 function release() {
   if (state !== 'charging') return;
   const strength = Math.min((performance.now()-chargeStart)/maxCharge,1);
@@ -93,13 +107,19 @@ function finish() {
 }
 function roundRect(x,y,w,h,r,fill){ctx.fillStyle=fill;ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fill();}
 function cloud(x,y,s){ctx.fillStyle='#ffffff99';ctx.beginPath();ctx.ellipse(x,y,48*s,14*s,0,0,Math.PI*2);ctx.ellipse(x-16*s,y-9*s,21*s,17*s,0,0,Math.PI*2);ctx.ellipse(x+10*s,y-15*s,25*s,21*s,0,0,Math.PI*2);ctx.fill();}
-function baby(x,y,squash){
- ctx.save();ctx.translate(x,y);ctx.scale(1,1-squash*.18);
+function baby(x,y,squash,pose={active:false,rotation:0,scale:1}){
+ ctx.save();ctx.translate(x,y);ctx.rotate(pose.rotation);ctx.scale(1,pose.scale*(1-squash*.18));
  ctx.fillStyle='#ced7bf';ctx.beginPath();ctx.ellipse(0,7,25,7,0,0,Math.PI*2);ctx.fill();
  if(sprites.complete && sprites.naturalWidth){
    const c=characters[selectedCharacter].crop,height=90,width=c[2]/c[3]*height;
    ctx.drawImage(sprites,...c,-width/2,-height,width,height);
  }else{roundRect(-20,-55,40,55,20,'#f3cd50');}
+ if(pose.active){
+   ctx.save();ctx.translate(-12,-76);ctx.rotate(-0.12);
+   ctx.fillStyle='#47271d';ctx.beginPath();ctx.ellipse(0,0,9,8,0,0,Math.PI*2);ctx.fill();
+   roundRect(-7,-5,14,3,1.5,'#fff8e7');
+   ctx.fillStyle='#ed9a91';ctx.beginPath();ctx.ellipse(0,4,5,2,0,0,Math.PI*2);ctx.fill();ctx.restore();
+ }
  ctx.restore();
 }
 function frame(now){
@@ -117,7 +137,8 @@ function frame(now){
  const bounceProgress = bounceStart === null ? 1 : Math.min((now-bounceStart)/450,1);
  const bounceOffset = state === 'ready' ? Math.sin(bounceProgress*Math.PI)*32 : 0;
  if(bounceProgress === 1) bounceStart = null;
- baby(player.x-camera,player.y-bounceOffset,strength);
+ const pose=laughPose(now);
+ baby(player.x-camera,player.y-bounceOffset-pose.offset,strength,pose);
  ctx.fillStyle='#8c9f80';ctx.font='12px "Microsoft YaHei"';ctx.fillText('饼干之间的距离不同，记得调整蓄力时间哦',28,510);
  requestAnimationFrame(frame);
 }
@@ -152,8 +173,9 @@ canvas.addEventListener('click',e=>{
   const y=(e.clientY-bounds.top)*canvas.height/bounds.height;
   const crop=characters[selectedCharacter].crop,width=crop[2]/crop[3]*90;
   const progress=bounceStart===null?1:Math.min((performance.now()-bounceStart)/450,1);
-  const feet=player.y-Math.sin(progress*Math.PI)*32;
-  if(Math.abs(x-(player.x-camera))<=width/2 && y>=feet-90 && y<=feet+5)interactWithCharacter();
+  const pose=laughPose(performance.now());
+  const feet=player.y-Math.sin(progress*Math.PI)*32-pose.offset;
+  if(Math.abs(x-(player.x-camera))<=width/2+16 && y>=feet-105 && y<=feet+12)interactWithCharacter();
 });
 window.addEventListener('blur',cancelCharge);
 document.querySelector('#restart').addEventListener('click',reset);
