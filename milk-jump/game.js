@@ -41,7 +41,8 @@ const characterButtons=characters.map((character,index)=>{
     characterButtons.forEach((item,i)=>item.setAttribute('aria-pressed',String(i===index)));
     characterStatus.textContent=`当前搭档：${character.name} · 五位角色能力相同`;
     try {localStorage.setItem('milk-hop-character',String(index));} catch {}
-    interactWithCharacter();
+    bounceStart = null;
+    voices.forEach(audio => { audio.pause(); audio.currentTime = 0; });
   });
   document.querySelector('#characters').append(button);return button;
 });
@@ -57,8 +58,8 @@ sprites.src='assets/characters.png';
 const ground = 390, maxCharge = 1500;
 // 画布中 y 越小，位置越高。限制相邻高度差，避免平台变化太突然。
 function nextPlatform(previous) {
-  const y = Math.max(300, Math.min(430, previous.y + (Math.random() * 120 - 60)));
-  return {x:previous.x+190+Math.random()*140, y, w:105+Math.random()*35};
+  const y = Math.max(280, Math.min(450, previous.y + (Math.random() * 220 - 110)));
+  return {x:previous.x+200+Math.random()*200, y, w:80+Math.random()*110};
 }
 function reset() {
   platforms = [{x:180,y:ground,w:140}];
@@ -74,7 +75,7 @@ function begin() { if (state !== 'ready') return; bounceStart = null; state = 'c
 function release() {
   if (state !== 'charging') return;
   const strength = Math.min((performance.now()-chargeStart)/maxCharge,1);
-  flight = {start:performance.now(),x:player.x,y:player.y, targetY:platforms[platforms.length-1].y, distance:60+strength*360,duration:700};
+  flight = {start:performance.now(),x:player.x,y:player.y, targetY:platforms[platforms.length-1].y, distance:60+strength*480,duration:700};
   state = 'jumping'; setPower(0); message.textContent = '呼——飞起来啦！';
 }
 function finish() {
