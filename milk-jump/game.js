@@ -14,7 +14,7 @@ const characters = [
   {name:'奶鸡',crop:[1760,220,380,435]}
 ];
 const voices = ['egg','mouse','baby','dog','chicken'].map(id => {
-  const audio = new Audio(id === 'baby' ? 'assets/audio/baby-laugh.m4a' : 'assets/audio/' + id + '.wav');
+  const audio = new Audio('assets/audio/' + id + '.wav');
   audio.preload = 'auto';
   return audio;
 });
@@ -25,14 +25,17 @@ function stopCharacterInteraction() {
   laughStart = null;
   voices.forEach(audio => { audio.pause(); audio.currentTime = 0; });
 }
+const laughFrameCount=422,laughFps=30;
+const laughSheets=Array.from({length:7},(_,index)=>{
+  const image=new Image();
+  image.src='assets/baby/laugh-sheet-'+String(index+1).padStart(2,'0')+'.webp';
+  return image;
+});
 function laughPose(now) {
-  if(laughStart === null) return {active:false,offset:0,rotation:0,scale:1};
+  if(laughStart===null)return {active:false,frame:0};
   const elapsed=now-laughStart;
-  if(elapsed>=13200){laughStart=null;return {active:false,offset:0,rotation:0,scale:1};}
-  const envelope=Math.min(elapsed/250,1,(13200-elapsed)/400);
-  return {active:true,offset:Math.abs(Math.sin(elapsed/85))*9*envelope,
-    rotation:(Math.sin(elapsed/420)*0.13+Math.sin(elapsed/48)*0.018)*envelope,
-    scale:1+Math.sin(elapsed/85)*0.045*envelope};
+  if(elapsed>=laughFrameCount/laughFps*1000){laughStart=null;return {active:false,frame:0};}
+  return {active:true,frame:Math.min(laughFrameCount-1,Math.floor(elapsed/1000*laughFps))};
 }
 function interactWithCharacter() {
   if (state !== 'ready') return;
@@ -107,19 +110,17 @@ function finish() {
 }
 function roundRect(x,y,w,h,r,fill){ctx.fillStyle=fill;ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fill();}
 function cloud(x,y,s){ctx.fillStyle='#ffffff99';ctx.beginPath();ctx.ellipse(x,y,48*s,14*s,0,0,Math.PI*2);ctx.ellipse(x-16*s,y-9*s,21*s,17*s,0,0,Math.PI*2);ctx.ellipse(x+10*s,y-15*s,25*s,21*s,0,0,Math.PI*2);ctx.fill();}
-function baby(x,y,squash,pose={active:false,rotation:0,scale:1}){
- ctx.save();ctx.translate(x,y);ctx.rotate(pose.rotation);ctx.scale(1,pose.scale*(1-squash*.18));
+function baby(x,y,squash,pose={active:false,frame:0}){
+ ctx.save();ctx.translate(x,y);ctx.scale(1,1-squash*.18);
  ctx.fillStyle='#ced7bf';ctx.beginPath();ctx.ellipse(0,7,25,7,0,0,Math.PI*2);ctx.fill();
- if(sprites.complete && sprites.naturalWidth){
+ if(pose.active && selectedCharacter===2){
+   const sheet=laughSheets[Math.floor(pose.frame/64)],cell=pose.frame%64;
+   // 原素材每帧 288×368，保留脚底位置及完整的倒地动作。
+   ctx.drawImage(sheet,(cell%8)*288,Math.floor(cell/8)*368,288,368,-44,-103,88,112);
+ }else if(sprites.complete && sprites.naturalWidth){
    const c=characters[selectedCharacter].crop,height=90,width=c[2]/c[3]*height;
    ctx.drawImage(sprites,...c,-width/2,-height,width,height);
  }else{roundRect(-20,-55,40,55,20,'#f3cd50');}
- if(pose.active){
-   ctx.save();ctx.translate(-12,-76);ctx.rotate(-0.12);
-   ctx.fillStyle='#47271d';ctx.beginPath();ctx.ellipse(0,0,9,8,0,0,Math.PI*2);ctx.fill();
-   roundRect(-7,-5,14,3,1.5,'#fff8e7');
-   ctx.fillStyle='#ed9a91';ctx.beginPath();ctx.ellipse(0,4,5,2,0,0,Math.PI*2);ctx.fill();ctx.restore();
- }
  ctx.restore();
 }
 function frame(now){
@@ -138,7 +139,7 @@ function frame(now){
  const bounceOffset = state === 'ready' ? Math.sin(bounceProgress*Math.PI)*32 : 0;
  if(bounceProgress === 1) bounceStart = null;
  const pose=laughPose(now);
- baby(player.x-camera,player.y-bounceOffset-pose.offset,strength,pose);
+ baby(player.x-camera,player.y-bounceOffset,strength,pose);
  ctx.fillStyle='#8c9f80';ctx.font='12px "Microsoft YaHei"';ctx.fillText('饼干之间的距离不同，记得调整蓄力时间哦',28,510);
  requestAnimationFrame(frame);
 }
@@ -174,7 +175,7 @@ canvas.addEventListener('click',e=>{
   const crop=characters[selectedCharacter].crop,width=crop[2]/crop[3]*90;
   const progress=bounceStart===null?1:Math.min((performance.now()-bounceStart)/450,1);
   const pose=laughPose(performance.now());
-  const feet=player.y-Math.sin(progress*Math.PI)*32-pose.offset;
+  const feet=player.y-Math.sin(progress*Math.PI)*32;
   if(Math.abs(x-(player.x-camera))<=width/2+16 && y>=feet-105 && y<=feet+12)interactWithCharacter();
 });
 window.addEventListener('blur',cancelCharge);
