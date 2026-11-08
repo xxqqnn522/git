@@ -33,7 +33,8 @@ const laughSheets=Array.from({length:7},(_,index)=>{
 });
 function laughPose(now) {
   if(laughStart===null)return {active:false,frame:0};
-  const elapsed=now-laughStart;
+  // 点击事件可能晚于本帧的时间戳，不能让帧编号变成负数。
+  const elapsed=Math.max(0,now-laughStart);
   if(elapsed>=laughFrameCount/laughFps*1000){laughStart=null;return {active:false,frame:0};}
   return {active:true,frame:Math.min(laughFrameCount-1,Math.floor(elapsed/1000*laughFps))};
 }
@@ -116,7 +117,12 @@ function baby(x,y,squash,pose={active:false,frame:0}){
  if(pose.active && selectedCharacter===2){
    const sheet=laughSheets[Math.floor(pose.frame/64)],cell=pose.frame%64;
    // 原素材每帧 288×368，保留脚底位置及完整的倒地动作。
-   ctx.drawImage(sheet,(cell%8)*288,Math.floor(cell/8)*368,288,368,-44,-103,88,112);
+   if(sheet && sheet.complete && sheet.naturalWidth>0){
+     ctx.drawImage(sheet,(cell%8)*288,Math.floor(cell/8)*368,288,368,-44,-103,88,112);
+   }else if(sprites.complete && sprites.naturalWidth){
+     const c=characters[selectedCharacter].crop;
+     ctx.drawImage(sprites,...c,-c[2]/c[3]*45,-90,c[2]/c[3]*90,90);
+   }else{roundRect(-20,-55,40,55,20,'#f3cd50');}
  }else if(sprites.complete && sprites.naturalWidth){
    const c=characters[selectedCharacter].crop,height=90,width=c[2]/c[3]*height;
    ctx.drawImage(sprites,...c,-width/2,-height,width,height);
@@ -124,6 +130,7 @@ function baby(x,y,squash,pose={active:false,frame:0}){
  ctx.restore();
 }
 function frame(now){
+ requestAnimationFrame(frame);
  const dt=Math.min((now-(lastTime||now))/1000,.05); lastTime=now;
  let strength=state==='charging'?Math.min((now-chargeStart)/maxCharge,1):0;
  if(state==='charging')setPower(strength);
@@ -141,7 +148,6 @@ function frame(now){
  const pose=laughPose(now);
  baby(player.x-camera,player.y-bounceOffset,strength,pose);
  ctx.fillStyle='#8c9f80';ctx.font='12px "Microsoft YaHei"';ctx.fillText('饼干之间的距离不同，记得调整蓄力时间哦',28,510);
- requestAnimationFrame(frame);
 }
 const jumpButton = document.querySelector('#jump');
 let jumpPointer = null;
