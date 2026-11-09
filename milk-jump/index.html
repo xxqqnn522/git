@@ -4,16 +4,17 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>奶娃跳一跳</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=difficulty-1">
 </head>
 <body>
   <main>
     <header><div class="brand">MILK HOP <span>奶娃跳一跳</span></div><span class="tag">一口奶气，一跃云端</span></header>
     <section class="heading"><div><p class="eyebrow">饼干云游记 / CHAPTER 01</p><h1>奶娃跳一跳</h1><p>把云朵当作游乐场，向下一块饼干出发。</p></div><div class="scores"><div><small>本次得分</small><strong id="score">0</strong></div><div><small>个人最佳</small><strong id="best">0</strong></div></div></section>
     <section class="character-picker" aria-label="选择游戏角色"><div><strong>选择你的跳跃搭档</strong><p id="character-status" role="status">角色素材加载中…</p></div><div id="characters" class="character-list"></div></section>
+    <section class="difficulty-picker"><label for="difficulty">挑战难度 <select id="difficulty"><option value="easy">简单</option><option value="hard">困难</option><option value="hell">地狱</option></select></label><p id="difficulty-description" role="status"></p></section>
     <section class="playground" aria-label="奶娃跳一跳游戏"><canvas id="game" width="960" height="540" aria-label="点击角色互动；仅按住绿色按钮蓄力，松开跳跃"></canvas><div id="message" role="status" aria-live="polite">准备好了吗？按住蓄力，松开起跳！</div></section>
     <section class="controls"><div><span class="step">01</span> 按住蓄力 <span class="line">—</span> <span class="step">02</span> 松开跳跃 <p>仅按住绿色按钮蓄力 · 点击角色弹跳发声 · 正中央额外 +1 分</p></div><div class="actions"><button id="restart" class="secondary">重新开始 ↻</button><button id="jump">按住，跳一跳 ↗</button></div></section>
     <div class="meter" role="progressbar" aria-label="蓄力" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="power"></div></div>
     <footer><span>慢一点，找到自己的节奏。</span><span>为每一次小小的勇敢，喝彩 ✦</span></footer>
-  </main><script src="game.js?v=laugh-repeat-fix2"></script>
+  </main><script src="game.js?v=difficulty-charge-1"></script>
 </body></html>

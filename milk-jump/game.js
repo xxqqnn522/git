@@ -2,8 +2,16 @@
 const canvas = document.querySelector('#game'), ctx = canvas.getContext('2d');
 const scoreEl = document.querySelector('#score'), bestEl = document.querySelector('#best');
 const message = document.querySelector('#message'), power = document.querySelector('#power');
+const difficulties={
+  easy:{name:'简单',width:[190,240],gap:[260,340],step:0,minY:390,maxY:390,description:'大饼干 · 没有上下起伏'},
+  hard:{name:'困难',width:[130,180],gap:[220,370],step:35,minY:345,maxY:425,description:'中等饼干 · 轻微上下起伏'},
+  hell:{name:'地狱',width:[80,190],gap:[200,400],step:110,minY:280,maxY:450,description:'高低、宽度和间距大幅随机'}
+};
+let difficulty='easy';
+try{const saved=localStorage.getItem('milk-hop-difficulty');if(Object.hasOwn(difficulties,saved))difficulty=saved;}catch{}
+const bestKey=()=>difficulty==='hell'?'milk-hop-best':'milk-hop-best-'+difficulty;
 let best = 0;
-try { best = Number(localStorage.getItem('milk-hop-best')) || 0; } catch {}
+try { best = Number(localStorage.getItem(bestKey())) || 0; } catch {}
 bestEl.textContent = best;
 let platforms, player, score, state, chargeStart, flight, camera, lastTime;
 const characters = [
@@ -79,11 +87,14 @@ sprites.src='assets/characters.png';
 const ground = 390, maxCharge = 1500;
 // 画布中 y 越小，位置越高。限制相邻高度差，避免平台变化太突然。
 function nextPlatform(previous) {
-  const y = Math.max(280, Math.min(450, previous.y + (Math.random() * 220 - 110)));
-  return {x:previous.x+200+Math.random()*200, y, w:80+Math.random()*110};
+  const config=difficulties[difficulty];
+  const y = Math.max(config.minY,Math.min(config.maxY,previous.y+(Math.random()*2-1)*config.step));
+  return {x:previous.x+config.gap[0]+Math.random()*(config.gap[1]-config.gap[0]),y,
+    w:config.width[0]+Math.random()*(config.width[1]-config.width[0])};
 }
 function reset() {
-  platforms = [{x:180,y:ground,w:140}];
+  stopChargeSound();
+  platforms = [{x:180,y:ground,w:difficulties[difficulty].width[1]}];
   platforms.push(nextPlatform(platforms[0]));
   player = {x:180,y:ground}; score = 0; state = 'ready'; camera = 0; flight = null;
   stopCharacterInteraction();
@@ -91,7 +102,35 @@ function reset() {
   message.textContent = '准备好了吗？按住绿色按钮蓄力，松开起跳！';
 }
 function setPower(value) { power.style.width = `${value * 100}%`; document.querySelector('.meter').setAttribute('aria-valuenow', Math.round(value * 100)); }
-function begin() { if (state !== 'ready') return; stopCharacterInteraction(); state = 'charging'; chargeStart = performance.now(); }
+let chargeAudioContext=null,chargeTone=null;
+function startChargeSound(){
+  stopChargeSound();
+  try{
+    const AudioEngine=window.AudioContext||window.webkitAudioContext;
+    if(!AudioEngine)return;
+    chargeAudioContext ||= new AudioEngine();
+    chargeAudioContext.resume().catch(()=>{});
+    const oscillator=chargeAudioContext.createOscillator(),gain=chargeAudioContext.createGain();
+    const time=chargeAudioContext.currentTime;
+    oscillator.type='sine';
+    oscillator.frequency.setValueAtTime(220,time);
+    oscillator.frequency.exponentialRampToValueAtTime(880,time+maxCharge/1000);
+    gain.gain.setValueAtTime(0,time);gain.gain.linearRampToValueAtTime(0.07,time+0.025);
+    oscillator.connect(gain);gain.connect(chargeAudioContext.destination);oscillator.start();
+    chargeTone={oscillator,gain};
+  }catch{stopChargeSound();}
+}
+function stopChargeSound(){
+  if(!chargeTone)return;
+  const tone=chargeTone;chargeTone=null;
+  try{
+    const time=chargeAudioContext.currentTime;
+    tone.gain.gain.cancelScheduledValues(time);tone.gain.gain.setTargetAtTime(0,time,0.008);
+    tone.oscillator.stop(time+0.04);
+    tone.oscillator.onended=()=>{tone.oscillator.disconnect();tone.gain.disconnect();};
+  }catch{}
+}
+function begin() { if (state !== 'ready') return; stopCharacterInteraction(); state = 'charging'; chargeStart = performance.now(); startChargeSound(); }
 function release() {
   if (state !== 'charging') return;
   const strength = Math.min((performance.now()-chargeStart)/maxCharge,1);
@@ -103,7 +142,7 @@ function finish() {
   if (Math.abs(player.x-target.x) <= target.w/2-12) {
     const perfect = Math.abs(player.x-target.x)<16;
     score += perfect ? 2 : 1; scoreEl.textContent = score;
-    if (score>best) { best=score; bestEl.textContent=best; try { localStorage.setItem('milk-hop-best',String(best)); } catch {} }
+    if (score>best) { best=score; bestEl.textContent=best; try { localStorage.setItem(bestKey(),String(best)); } catch {} }
     message.textContent = perfect ? '正中饼干！漂亮一跳 +2' : '稳稳落地！再来一跳 +1';
     player.y = target.y;
     platforms.push(nextPlatform(target));
@@ -162,6 +201,7 @@ jumpButton.addEventListener('pointerup',e=>{
   jumpPointer=null;release();
 });
 function cancelCharge(){
+  stopChargeSound();
   jumpPointer=null;
   if(state==='charging'){state='ready';setPower(0);}
 }
@@ -188,4 +228,15 @@ canvas.addEventListener('click',e=>{
 });
 window.addEventListener('blur',cancelCharge);
 document.querySelector('#restart').addEventListener('click',reset);
+const difficultySelect=document.querySelector('#difficulty');
+difficultySelect.value=difficulty;
+function updateDifficultyDescription(){document.querySelector('#difficulty-description').textContent=difficulties[difficulty].description+' · 切换难度会重新开始，最佳分按难度记录';}
+updateDifficultyDescription();
+difficultySelect.addEventListener('change',()=>{
+  if(!Object.hasOwn(difficulties,difficultySelect.value))return;
+  cancelCharge();difficulty=difficultySelect.value;
+  try{localStorage.setItem('milk-hop-difficulty',difficulty);best=Number(localStorage.getItem(bestKey()))||0;}catch{best=0;}
+  bestEl.textContent=best;updateDifficultyDescription();reset();
+});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)cancelCharge();});
 reset();requestAnimationFrame(frame);
