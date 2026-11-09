@@ -133,6 +133,7 @@ function stopChargeSound(){
 function begin() { if (state !== 'ready') return; stopCharacterInteraction(); state = 'charging'; chargeStart = performance.now(); startChargeSound(); }
 function release() {
   if (state !== 'charging') return;
+  stopChargeSound();
   const strength = Math.min((performance.now()-chargeStart)/maxCharge,1);
   flight = {start:performance.now(),x:player.x,y:player.y, targetY:platforms[platforms.length-1].y, distance:60+strength*480,duration:700};
   state = 'jumping'; setPower(0); message.textContent = '呼——飞起来啦！';
