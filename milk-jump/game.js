@@ -96,6 +96,7 @@ sprites.onerror=()=>{characterStatus.textContent='角色图片加载失败，请
 sprites.src='assets/characters.png';
 const ground = 390, maxCharge = 1500;
 let biscuitNumber=1;
+let perfectStreak=0;
 // 画布中 y 越小，位置越高。限制相邻高度差，避免平台变化太突然。
 function nextPlatform(previous) {
   const config=difficulties[difficulty];
@@ -109,6 +110,7 @@ function reset() {
   window.MilkLeaderboard?.finish(score,'restart');
   stopChargeSound();
   biscuitNumber=1;
+  perfectStreak=0;
   platforms = [{x:180,y:ground,w:difficulties[difficulty].width[1]}];
   platforms.push(nextPlatform(platforms[0]));
   player = {x:180,y:ground}; score = 0; state = 'ready'; camera = 0; flight = null;
@@ -145,6 +147,26 @@ function stopChargeSound(){
     tone.oscillator.onended=()=>{tone.oscillator.disconnect();tone.gain.disconnect();};
   }catch{}
 }
+function playPerfectSound(){
+  try{
+    const Engine=window.AudioContext||window.webkitAudioContext;
+    if(!Engine)return;
+    chargeAudioContext ||= new Engine();
+    chargeAudioContext.resume().catch(()=>{});
+    const time=chargeAudioContext.currentTime;
+    const pitch=1+Math.min(perfectStreak-1,12)*0.04;
+    [523.25,659.25,783.99].forEach((frequency,index)=>{
+      const oscillator=chargeAudioContext.createOscillator(),gain=chargeAudioContext.createGain();
+      oscillator.type='sine';oscillator.frequency.value=frequency*pitch;
+      gain.gain.setValueAtTime(0,time+index*.06);
+      gain.gain.linearRampToValueAtTime(.075,time+index*.06+.015);
+      gain.gain.exponentialRampToValueAtTime(.001,time+index*.06+.22);
+      oscillator.connect(gain);gain.connect(chargeAudioContext.destination);
+      oscillator.start(time+index*.06);oscillator.stop(time+index*.06+.24);
+      oscillator.onended=()=>{oscillator.disconnect();gain.disconnect();};
+    });
+  }catch{ /* 声音不可用不影响得分。 */ }
+}
 function begin() { if (state !== 'ready') return; stopCharacterInteraction(); window.MilkLeaderboard?.start(difficulty,characters[selectedCharacter].name); state = 'charging'; chargeStart = performance.now(); startChargeSound(); }
 function release() {
   if (state !== 'charging') return;
@@ -175,13 +197,17 @@ function finish() {
     state='ready';
     // 已经踩过的饼干仍然提供支撑，但不能在原地刷分或生成新平台。
     if(landed!==target){
+      perfectStreak=0;
       message.textContent='稳稳落在饼干上！继续蓄力，向下一块出发。';
       return;
     }
     const perfect = Math.abs(player.x-target.x)<16;
-    score += perfect ? 2 : 1; scoreEl.textContent = score;
+    perfectStreak=perfect ? perfectStreak+1 : 0;
+    const reward=perfect ? 2**Math.min(perfectStreak,52) : 1;
+    score=Math.min(Number.MAX_SAFE_INTEGER,score+reward);scoreEl.textContent = score;
+    if(perfect)playPerfectSound();
     if (score>best) { best=score; bestEl.textContent=best; try { localStorage.setItem(bestKey(),String(best)); } catch {} }
-    message.textContent = perfect ? '正中饼干！漂亮一跳 +2' : '稳稳落地！再来一跳 +1';
+    message.textContent = perfect ? `正中饼干！${perfectStreak} 连击 +${reward}` : '稳稳落地！+1 分，连击重新开始';
     player.y = target.y;
     platforms.push(nextPlatform(target));
     if(platforms.length>5) platforms.shift();

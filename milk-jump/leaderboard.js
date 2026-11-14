@@ -38,7 +38,7 @@
     status.textContent = '正在加载…';
     try {
       let rows;
-      try { rows=await rpc('milk_top_ten_v2',{p_difficulty:selector.value}); }
+      try { rows=await rpc('milk_top_ten_v3',{p_difficulty:selector.value}); }
       catch(error){if(error.status!==404)throw error;rows=await rpc('milk_top_ten',{p_difficulty:selector.value});}
       if (request !== requestNumber) return;
       list.replaceChildren();
@@ -58,7 +58,7 @@
     uploading = true;
     try {
       while (queue.length) {
-        await rpc('milk_record_run_v2', { ...queue[0], p_character:queue[0].p_character || '未记录' });
+        await rpc('milk_record_run_v3', { ...queue[0], p_character:queue[0].p_character || '未记录' });
         queue.shift(); write('milk-score-outbox', queue);
       }
       await refresh();
