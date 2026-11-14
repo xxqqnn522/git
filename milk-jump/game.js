@@ -19,9 +19,10 @@ const characters = [
   {name:'奶鼠',crop:[475,240,370,415]},
   {name:'奶娃',crop:[880,60,365,610]},
   {name:'奶狗',crop:[1325,235,385,420]},
-  {name:'奶鸡',crop:[1760,220,380,435]}
+  {name:'奶鸡',crop:[1760,220,380,435]},
+  {name:'袋鼠',crop:[110,20,980,1220],asset:'assets/kangaroo.png'}
 ];
-const voices = ['egg','mouse','baby','dog','chicken'].map(id => {
+const voices = ['egg','mouse','baby','dog','chicken','kangaroo'].map(id => {
   const audio = new Audio('assets/audio/' + id + '.wav');
   audio.preload = 'auto';
   return audio;
@@ -60,6 +61,11 @@ function interactWithCharacter() {
 let selectedCharacter=0;
 try { const saved=Number(localStorage.getItem('milk-hop-character')); if(Number.isInteger(saved)&&saved>=0&&saved<characters.length)selectedCharacter=saved; } catch {}
 const sprites=new Image();
+const kangarooSprite=new Image();
+kangarooSprite.onload=()=>renderCharacterPreviews();
+kangarooSprite.onerror=()=>{characterStatus.textContent='袋鼠图片加载失败，请刷新后再试。';};
+kangarooSprite.src='assets/kangaroo.png';
+function characterImage(index){return characters[index].asset ? kangarooSprite : sprites;}
 const characterStatus=document.querySelector('#character-status');
 const characterButtons=characters.map((character,index)=>{
   const button=document.createElement('button');button.type='button';button.className='character-option';
@@ -70,19 +76,22 @@ const characterButtons=characters.map((character,index)=>{
     selectedCharacter=index;
     window.MilkLeaderboard?.setCharacter(characters[index].name);
     characterButtons.forEach((item,i)=>item.setAttribute('aria-pressed',String(i===index)));
-    characterStatus.textContent=`当前搭档：${character.name} · 五位角色能力相同`;
+    characterStatus.textContent=`当前搭档：${character.name} · 六位角色能力相同`;
     try {localStorage.setItem('milk-hop-character',String(index));} catch {}
     stopCharacterInteraction();
   });
   document.querySelector('#characters').append(button);return button;
 });
-sprites.onload=()=>{
+function renderCharacterPreviews(){
   characters.forEach((character,index)=>{
+    const image=characterImage(index);
+    if(!image.complete||!image.naturalWidth)return;
     const c=character.crop,h=84,w=c[2]/c[3]*h;
-    characterButtons[index].querySelector('canvas').getContext('2d').drawImage(sprites,...c,(96-w)/2,96-h,w,h);
+    characterButtons[index].querySelector('canvas').getContext('2d').drawImage(image,...c,(96-w)/2,96-h,w,h);
   });
-  characterStatus.textContent=`当前搭档：${characters[selectedCharacter].name} · 五位角色能力相同`;
+  characterStatus.textContent=`当前搭档：${characters[selectedCharacter].name} · 六位角色能力相同`;
 };
+sprites.onload=renderCharacterPreviews;
 sprites.onerror=()=>{characterStatus.textContent='角色图片加载失败，请检查 assets/characters.png 后刷新。';};
 sprites.src='assets/characters.png';
 const ground = 390, maxCharge = 1500;
@@ -212,6 +221,7 @@ function drawCoins(now){
 function roundRect(x,y,w,h,r,fill){ctx.fillStyle=fill;ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fill();}
 function cloud(x,y,s){ctx.fillStyle='#ffffff99';ctx.beginPath();ctx.ellipse(x,y,48*s,14*s,0,0,Math.PI*2);ctx.ellipse(x-16*s,y-9*s,21*s,17*s,0,0,Math.PI*2);ctx.ellipse(x+10*s,y-15*s,25*s,21*s,0,0,Math.PI*2);ctx.fill();}
 function baby(x,y,squash,pose={active:false,frame:0}){
+ const image=characterImage(selectedCharacter);
  ctx.save();ctx.translate(x,y);ctx.scale(1,1-squash*.18);
  ctx.fillStyle='#ced7bf';ctx.beginPath();ctx.ellipse(0,7,25,7,0,0,Math.PI*2);ctx.fill();
  if(pose.active && selectedCharacter===2){
@@ -219,13 +229,13 @@ function baby(x,y,squash,pose={active:false,frame:0}){
    // 原素材每帧 288×368，保留脚底位置及完整的倒地动作。
    if(sheet && sheet.complete && sheet.naturalWidth>0){
      ctx.drawImage(sheet,(cell%8)*288,Math.floor(cell/8)*368,288,368,-44,-103,88,112);
-   }else if(sprites.complete && sprites.naturalWidth){
+   }else if(image.complete && image.naturalWidth){
      const c=characters[selectedCharacter].crop;
-     ctx.drawImage(sprites,...c,-c[2]/c[3]*45,-90,c[2]/c[3]*90,90);
+     ctx.drawImage(image,...c,-c[2]/c[3]*45,-90,c[2]/c[3]*90,90);
    }else{roundRect(-20,-55,40,55,20,'#f3cd50');}
- }else if(sprites.complete && sprites.naturalWidth){
+ }else if(image.complete && image.naturalWidth){
    const c=characters[selectedCharacter].crop,height=90,width=c[2]/c[3]*height;
-   ctx.drawImage(sprites,...c,-width/2,-height,width,height);
+   ctx.drawImage(image,...c,-width/2,-height,width,height);
  }else{roundRect(-20,-55,40,55,20,'#f3cd50');}
  ctx.restore();
 }

@@ -6,7 +6,7 @@ create or replace function public.milk_record_run_v2(
   p_score integer, p_duration_ms integer, p_reason text, p_character text
 ) returns void language plpgsql security definer set search_path = '' as $$
 begin
-  if p_character is null or p_character not in ('奶蛋','奶鼠','奶娃','奶狗','奶鸡','未记录')
+  if p_character is null or p_character not in ('奶蛋','奶鼠','奶娃','奶狗','奶鸡','袋鼠','未记录')
     or p_nickname is null or char_length(trim(p_nickname)) not between 1 and 20
     or p_difficulty is null or p_difficulty not in ('easy','hard','hell')
     or p_score is null or p_score not between 0 and 1000000
