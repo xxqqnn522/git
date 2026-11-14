@@ -4,7 +4,7 @@ const scoreEl = document.querySelector('#score'), bestEl = document.querySelecto
 const message = document.querySelector('#message'), power = document.querySelector('#power');
 const difficulties={
   easy:{name:'简单',width:[170,215],gap:[260,340],step:0,minY:390,maxY:390,description:'大饼干 · 没有上下起伏'},
-  hard:{name:'困难',width:[130,180],gap:[220,370],step:35,minY:345,maxY:425,description:'中等饼干 · 轻微上下起伏'},
+  hard:{name:'困难',width:[130,180],gap:[220,370],step:50,minY:330,maxY:435,description:'中等饼干 · 适度上下起伏'},
   hell:{name:'地狱',width:[80,190],gap:[200,400],step:110,minY:280,maxY:450,description:'高低、宽度和间距大幅随机'}
 };
 let difficulty='easy';
