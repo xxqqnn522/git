@@ -23,7 +23,7 @@ const characters = [
   {name:'袋鼠',crop:[110,20,980,1220],asset:'assets/kangaroo.png'}
 ];
 const voices = ['egg','mouse','baby','dog','chicken','kangaroo'].map(id => {
-  const audio = new Audio('assets/audio/' + id + '.wav');
+  const audio = new Audio('assets/audio/' + id + '.wav' + (id==='kangaroo' ? '?v=2.5' : ''));
   audio.preload = 'auto';
   return audio;
 });

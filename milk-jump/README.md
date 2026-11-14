@@ -59,4 +59,4 @@
 
 - 每局第 10、20、30…块饼干各有一枚金币，起始饼干算第 1 块。跳跃中碰到金币加 5 分，每枚只可领取一次；重开或切换难度重置计数。
 
-- 第六个角色“袋鼠”：参考用户图片通过内置 imagegen 去除背景，提示为保留造型与坐姿、透明背景；素材 assets/kangaroo.png。点击播放用户视频最前 2 秒，音频 assets/audio/kangaroo.wav。上线前运行 supabase-kangaroo-upgrade.sql 允许该角色成绩上传。
+- 第六个角色“袋鼠”：参考用户图片通过内置 imagegen 去除背景，提示为保留造型与坐姿、透明背景；素材 assets/kangaroo.png。点击播放用户视频最前 2.5 秒，音频 assets/audio/kangaroo.wav。上线前运行 supabase-kangaroo-upgrade.sql 允许该角色成绩上传。
