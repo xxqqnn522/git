@@ -85,16 +85,20 @@ sprites.onload=()=>{
 sprites.onerror=()=>{characterStatus.textContent='角色图片加载失败，请检查 assets/characters.png 后刷新。';};
 sprites.src='assets/characters.png';
 const ground = 390, maxCharge = 1500;
+let biscuitNumber=1;
 // 画布中 y 越小，位置越高。限制相邻高度差，避免平台变化太突然。
 function nextPlatform(previous) {
   const config=difficulties[difficulty];
   const y = Math.max(config.minY,Math.min(config.maxY,previous.y+(Math.random()*2-1)*config.step));
+  biscuitNumber++;
   return {x:previous.x+config.gap[0]+Math.random()*(config.gap[1]-config.gap[0]),y,
+    coin:biscuitNumber%10===0,
     w:config.width[0]+Math.random()*(config.width[1]-config.width[0])};
 }
 function reset() {
   window.MilkLeaderboard?.finish(score,'restart');
   stopChargeSound();
+  biscuitNumber=1;
   platforms = [{x:180,y:ground,w:difficulties[difficulty].width[1]}];
   platforms.push(nextPlatform(platforms[0]));
   player = {x:180,y:ground}; score = 0; state = 'ready'; camera = 0; flight = null;
@@ -174,6 +178,36 @@ function finish() {
     state='ready';
   } else { window.MilkLeaderboard?.finish(score); state='falling'; flight={start:performance.now()}; message.textContent='哎呀，踩空啦！点击「重新开始」再试一次。'; }
 }
+function collectCoins(from,to) {
+  const crop=characters[selectedCharacter].crop,halfWidth=crop[2]/crop[3]*45;
+  for(const platform of platforms){
+    if(!platform.coin)continue;
+    const cx=platform.x,cy=platform.y-48;
+    // 连续检测移动路径，避免卡顿时一帧越过金币而漏领。
+    let enter=0,exit=1;
+    for(const [start,end,min,max] of [[from.x,to.x,cx-halfWidth-12,cx+halfWidth+12],
+      [from.y,to.y,cy-12,cy+102]]){
+      const delta=end-start;
+      if(Math.abs(delta)<1e-9){if(start<min||start>max){exit=-1;break;}}
+      else{const a=(min-start)/delta,b=(max-start)/delta;enter=Math.max(enter,Math.min(a,b));exit=Math.min(exit,Math.max(a,b));}
+    }
+    if(enter<=exit){
+      platform.coin=false;score+=5;scoreEl.textContent=score;
+      if(score>best){best=score;bestEl.textContent=best;try{localStorage.setItem(bestKey(),String(best));}catch{}}
+      message.textContent='捡到金币！+5 分';
+    }
+  }
+}
+function drawCoins(now){
+  for(const platform of platforms){
+    if(!platform.coin)continue;
+    const x=platform.x-camera,y=platform.y-48;
+    ctx.save();ctx.translate(x,y);ctx.scale(0.65+Math.abs(Math.cos(now/350))*0.35,1);
+    ctx.fillStyle='#edaf26';ctx.strokeStyle='#fff2a1';ctx.lineWidth=3;
+    ctx.beginPath();ctx.arc(0,0,12,0,Math.PI*2);ctx.fill();ctx.stroke();
+    ctx.fillStyle='#fff5bd';ctx.font='bold 15px Georgia';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('$',0,1);ctx.restore();
+  }
+}
 function roundRect(x,y,w,h,r,fill){ctx.fillStyle=fill;ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fill();}
 function cloud(x,y,s){ctx.fillStyle='#ffffff99';ctx.beginPath();ctx.ellipse(x,y,48*s,14*s,0,0,Math.PI*2);ctx.ellipse(x-16*s,y-9*s,21*s,17*s,0,0,Math.PI*2);ctx.ellipse(x+10*s,y-15*s,25*s,21*s,0,0,Math.PI*2);ctx.fill();}
 function baby(x,y,squash,pose={active:false,frame:0}){
@@ -199,7 +233,7 @@ function frame(now){
  const dt=Math.min((now-(lastTime||now))/1000,.05); lastTime=now;
  let strength=state==='charging'?Math.min((now-chargeStart)/maxCharge,1):0;
  if(state==='charging')setPower(strength);
- if(state==='jumping') { const t=Math.min((now-flight.start)/flight.duration,1);player.x=flight.x+flight.distance*t;player.y=flight.y+(flight.targetY-flight.y)*t-Math.sin(t*Math.PI)*155;if(t===1)finish(); }
+ if(state==='jumping') { const from={x:player.x,y:player.y};const t=Math.max(0,Math.min((now-flight.start)/flight.duration,1));player.x=flight.x+flight.distance*t;player.y=flight.y+(flight.targetY-flight.y)*t-Math.sin(t*Math.PI)*155;collectCoins(from,player);if(t===1)finish(); }
  if(state==='falling'){player.y+=430*dt;if(player.y>650)state='over';}
  const desired=Math.max(0,(state==='jumping'?flight.x:player.x)-230);camera+=(desired-camera)*Math.min(1,dt*6);
  ctx.clearRect(0,0,960,540);ctx.fillStyle='#e8efdf';ctx.fillRect(0,0,960,540);
@@ -207,6 +241,7 @@ function frame(now){
  cloud(140-camera*.12,120,1.1);cloud(540-camera*.08,190,.75);cloud(855-camera*.1,100,1.3);
  ctx.fillStyle='#b5c6a6';ctx.font='16px Georgia';ctx.fillText('✦',720,240);ctx.fillText('✦',290,200);
  for(const p of platforms){const x=p.x-camera,y=p.y;ctx.fillStyle='#ced9bd';ctx.beginPath();ctx.ellipse(x,y+55,p.w*.6,13,0,0,7);ctx.fill();roundRect(x-p.w/2,y,p.w,34,12,'#bb8c59');roundRect(x-p.w/2,y-9,p.w,29,12,'#e7c28d');ctx.strokeStyle='#d2aa72';ctx.lineWidth=2;ctx.setLineDash([3,6]);ctx.strokeRect(x-p.w/2+10,y-1,p.w-20,12);ctx.setLineDash([]);for(let i=-1;i<=1;i++){ctx.fillStyle='#bc915f';ctx.beginPath();ctx.arc(x+i*25,y+5,2.5,0,7);ctx.fill();}}
+ drawCoins(now);
  const bounceProgress = bounceStart === null ? 1 : Math.min((now-bounceStart)/450,1);
  const bounceOffset = state === 'ready' ? Math.sin(bounceProgress*Math.PI)*32 : 0;
  if(bounceProgress === 1) bounceStart = null;
