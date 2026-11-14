@@ -14,3 +14,17 @@
 这是休闲排行榜：分数由网页上报，数据库有字段与权限限制，但不具备服务端复算或严格防作弊能力。不能直接用作有奖竞赛。
 
 后端未配置时会明确显示“尚未接入数据库”，不会把本机记录冒充全站排名。SQL 需要在 Supabase 实际运行后才能验证。
+
+## 仅站长查看在线人数
+
+在 Supabase SQL Editor 中运行 supabase-presence-upgrade.sql（即使之前运行过旧版，也需再运行本版）。页面可见时每 30 秒静默上报；访客接口不返回人数，原始表禁止匿名访问，旧版人数接口撤销访客权限。
+
+站长在 SQL Editor 中运行以下只读查询：
+
+```sql
+select count(*) as 当前在线人数
+from public.milk_online_visitors
+where last_seen >= now() - interval '2 minutes';
+```
+
+统计是最近 2 分钟的活跃浏览器数，同浏览器多标签页共用编号，换设备分别计数。关页后最多约 2 分钟移出统计。SQL 查询结果为执行时的快照，需要再次点击 Run 更新；不采集 IP 或位置。
