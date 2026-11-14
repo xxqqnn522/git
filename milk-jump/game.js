@@ -136,7 +136,9 @@ function release() {
   if (state !== 'charging') return;
   stopChargeSound();
   const strength = Math.min((performance.now()-chargeStart)/maxCharge,1);
-  flight = {start:performance.now(),x:player.x,y:player.y, targetY:platforms[platforms.length-1].y, distance:60+strength*480,duration:700};
+  const distance=60+strength*480;
+  const landing=findLandingPlatform(player.x+distance);
+  flight = {start:performance.now(),x:player.x,y:player.y, targetY:landing ? landing.y : player.y, distance,duration:700};
   state = 'jumping'; setPower(0); message.textContent = '呼——飞起来啦！';
 }
 function hasLandingSupport(x, platform, characterIndex=selectedCharacter) {
@@ -147,9 +149,21 @@ function hasLandingSupport(x, platform, characterIndex=selectedCharacter) {
     -Math.max(x-width/2,platform.x-platform.w/2));
   return overlap+1e-7>=width*0.8;
 }
+function findLandingPlatform(x) {
+  return platforms.filter(platform=>hasLandingSupport(x,platform))
+    .sort((a,b)=>Math.abs(x-a.x)-Math.abs(x-b.x))[0] || null;
+}
 function finish() {
   const target = platforms[platforms.length-1];
-  if (hasLandingSupport(player.x,target)) {
+  const landed=findLandingPlatform(player.x);
+  if (landed) {
+    player.y=landed.y;
+    state='ready';
+    // 已经踩过的饼干仍然提供支撑，但不能在原地刷分或生成新平台。
+    if(landed!==target){
+      message.textContent='稳稳落在饼干上！继续蓄力，向下一块出发。';
+      return;
+    }
     const perfect = Math.abs(player.x-target.x)<16;
     score += perfect ? 2 : 1; scoreEl.textContent = score;
     if (score>best) { best=score; bestEl.textContent=best; try { localStorage.setItem(bestKey(),String(best)); } catch {} }
