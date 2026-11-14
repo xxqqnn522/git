@@ -178,12 +178,16 @@ function release() {
   state = 'jumping'; setPower(0); message.textContent = '呼——飞起来啦！';
 }
 function hasLandingSupport(x, platform, characterIndex=selectedCharacter) {
-  // 与画布中角色的绘制宽度一致；按水平方向的重叠比例判定支撑。
+  // 脚部支撑区按各角色图片比例定义；奶蛋无脚，使用底部接触区。
+  const footRanges=[[-.27,.27],[-.24,.24],[-.26,.29],[-.31,.31],[-.18,.24],[-.30,.30]];
   const crop=characters[characterIndex].crop;
   const width=crop[2]/crop[3]*90;
+  const [leftFoot,rightFoot]=footRanges[characterIndex];
+  const left=platform.x-platform.w/2,right=platform.x+platform.w/2;
+  const bothFeetOn=x+leftFoot*width>=left-1e-7 && x+rightFoot*width<=right+1e-7;
   const overlap=Math.max(0,Math.min(x+width/2,platform.x+platform.w/2)
     -Math.max(x-width/2,platform.x-platform.w/2));
-  return overlap+1e-7>=width*0.8;
+  return bothFeetOn || overlap+1e-7>=width*0.8;
 }
 function findLandingPlatform(x) {
   return platforms.filter(platform=>hasLandingSupport(x,platform))
