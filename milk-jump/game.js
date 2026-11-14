@@ -93,6 +93,7 @@ function nextPlatform(previous) {
     w:config.width[0]+Math.random()*(config.width[1]-config.width[0])};
 }
 function reset() {
+  window.MilkLeaderboard?.finish(score,'restart');
   stopChargeSound();
   platforms = [{x:180,y:ground,w:difficulties[difficulty].width[1]}];
   platforms.push(nextPlatform(platforms[0]));
@@ -130,7 +131,7 @@ function stopChargeSound(){
     tone.oscillator.onended=()=>{tone.oscillator.disconnect();tone.gain.disconnect();};
   }catch{}
 }
-function begin() { if (state !== 'ready') return; stopCharacterInteraction(); state = 'charging'; chargeStart = performance.now(); startChargeSound(); }
+function begin() { if (state !== 'ready') return; stopCharacterInteraction(); window.MilkLeaderboard?.start(difficulty); state = 'charging'; chargeStart = performance.now(); startChargeSound(); }
 function release() {
   if (state !== 'charging') return;
   stopChargeSound();
@@ -149,7 +150,7 @@ function finish() {
     platforms.push(nextPlatform(target));
     if(platforms.length>5) platforms.shift();
     state='ready';
-  } else { state='falling'; flight={start:performance.now()}; message.textContent='哎呀，踩空啦！点击「重新开始」再试一次。'; }
+  } else { window.MilkLeaderboard?.finish(score); state='falling'; flight={start:performance.now()}; message.textContent='哎呀，踩空啦！点击「重新开始」再试一次。'; }
 }
 function roundRect(x,y,w,h,r,fill){ctx.fillStyle=fill;ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fill();}
 function cloud(x,y,s){ctx.fillStyle='#ffffff99';ctx.beginPath();ctx.ellipse(x,y,48*s,14*s,0,0,Math.PI*2);ctx.ellipse(x-16*s,y-9*s,21*s,17*s,0,0,Math.PI*2);ctx.ellipse(x+10*s,y-15*s,25*s,21*s,0,0,Math.PI*2);ctx.fill();}
@@ -235,6 +236,7 @@ function updateDifficultyDescription(){document.querySelector('#difficulty-descr
 updateDifficultyDescription();
 difficultySelect.addEventListener('change',()=>{
   if(!Object.hasOwn(difficulties,difficultySelect.value))return;
+  window.MilkLeaderboard?.finish(score,'difficulty');
   cancelCharge();difficulty=difficultySelect.value;
   try{localStorage.setItem('milk-hop-difficulty',difficulty);best=Number(localStorage.getItem(bestKey()))||0;}catch{best=0;}
   bestEl.textContent=best;updateDifficultyDescription();reset();
