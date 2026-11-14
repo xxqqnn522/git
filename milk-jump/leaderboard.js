@@ -23,27 +23,29 @@
       method: 'POST', headers: { 'Content-Type': 'application/json', apikey: config.key },
       body: JSON.stringify(body), signal: AbortSignal.timeout(12000)
     });
-    if (!response.ok) throw new Error('排行榜请求失败 (' + response.status + ')');
+    if (!response.ok) { const error=new Error('排行榜请求失败 (' + response.status + ')'); error.status=response.status;throw error; }
     const text = await response.text();
     return text ? JSON.parse(text) : null;
   }
   function empty(text) {
     list.replaceChildren();
     const row = document.createElement('tr'), cell = document.createElement('td');
-    cell.colSpan = 4; cell.textContent = text; row.append(cell); list.append(row);
+    cell.colSpan = 5; cell.textContent = text; row.append(cell); list.append(row);
   }
   async function refresh() {
     const request = ++requestNumber;
     if (!configured) { empty('全站排行榜尚未接入数据库'); status.textContent = '数据库配置完成后，将显示所有玩家的成绩。'; return; }
     status.textContent = '正在加载…';
     try {
-      const rows = await rpc('milk_top_ten', { p_difficulty: selector.value });
+      let rows;
+      try { rows=await rpc('milk_top_ten_v2',{p_difficulty:selector.value}); }
+      catch(error){if(error.status!==404)throw error;rows=await rpc('milk_top_ten',{p_difficulty:selector.value});}
       if (request !== requestNumber) return;
       list.replaceChildren();
       if (!rows?.length) empty('还没有成绩，来争夺第一名吧！');
       (rows || []).forEach((item, index) => {
         const row = document.createElement('tr');
-        for (const value of [index + 1, item.nickname, item.score, new Date(item.achieved_at).toLocaleString('zh-CN')]) {
+        for (const value of [index + 1, item.nickname, item.character_name || '未记录', item.score, new Date(item.achieved_at).toLocaleString('zh-CN')]) {
           const cell = document.createElement('td'); cell.textContent = value; row.append(cell);
         }
         list.append(row);
@@ -56,20 +58,21 @@
     uploading = true;
     try {
       while (queue.length) {
-        await rpc('milk_record_run', queue[0]);
+        await rpc('milk_record_run_v2', { ...queue[0], p_character:queue[0].p_character || '未记录' });
         queue.shift(); write('milk-score-outbox', queue);
       }
       await refresh();
-    } catch { status.textContent = `有 ${queue.length} 局尚未上传，联网后会重试，请保留本浏览器数据。`; }
+    } catch(error) { status.textContent = error.status===404 ? '请先运行角色字段升级脚本，成绩已暂存，升级后会自动重试。' : `有 ${queue.length} 局尚未上传，联网后会重试，请保留本浏览器数据。`; }
     finally { uploading = false; }
   }
   window.MilkLeaderboard = {
-    start(difficulty) {
+    start(difficulty, character) {
       if (currentRun) return;
       currentRun = { p_run_id: crypto.randomUUID(), p_player_id: playerId,
         p_nickname: nickname.value.trim().slice(0, 20) || '游客' + playerId.slice(0, 4),
-        p_difficulty: difficulty, p_score: 0, p_duration_ms: 0, p_reason: 'failed', started: performance.now() };
+        p_difficulty: difficulty, p_character:character || '未记录', p_score: 0, p_duration_ms: 0, p_reason: 'failed', started: performance.now() };
     },
+    setCharacter(character) { if(currentRun)currentRun.p_character=character; },
     finish(score, reason = 'failed') {
       if (!currentRun) return;
       const record = { ...currentRun, p_score: score, p_reason: reason,

@@ -68,6 +68,7 @@ const characterButtons=characters.map((character,index)=>{
   const label=document.createElement('span');label.textContent=character.name;button.append(preview,label);
   button.addEventListener('click',()=>{
     selectedCharacter=index;
+    window.MilkLeaderboard?.setCharacter(characters[index].name);
     characterButtons.forEach((item,i)=>item.setAttribute('aria-pressed',String(i===index)));
     characterStatus.textContent=`当前搭档：${character.name} · 五位角色能力相同`;
     try {localStorage.setItem('milk-hop-character',String(index));} catch {}
@@ -135,7 +136,7 @@ function stopChargeSound(){
     tone.oscillator.onended=()=>{tone.oscillator.disconnect();tone.gain.disconnect();};
   }catch{}
 }
-function begin() { if (state !== 'ready') return; stopCharacterInteraction(); window.MilkLeaderboard?.start(difficulty); state = 'charging'; chargeStart = performance.now(); startChargeSound(); }
+function begin() { if (state !== 'ready') return; stopCharacterInteraction(); window.MilkLeaderboard?.start(difficulty,characters[selectedCharacter].name); state = 'charging'; chargeStart = performance.now(); startChargeSound(); }
 function release() {
   if (state !== 'charging') return;
   stopChargeSound();
