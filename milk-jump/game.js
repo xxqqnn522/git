@@ -139,9 +139,17 @@ function release() {
   flight = {start:performance.now(),x:player.x,y:player.y, targetY:platforms[platforms.length-1].y, distance:60+strength*480,duration:700};
   state = 'jumping'; setPower(0); message.textContent = '呼——飞起来啦！';
 }
+function hasLandingSupport(x, platform, characterIndex=selectedCharacter) {
+  // 与画布中角色的绘制宽度一致；按水平方向的重叠比例判定支撑。
+  const crop=characters[characterIndex].crop;
+  const width=crop[2]/crop[3]*90;
+  const overlap=Math.max(0,Math.min(x+width/2,platform.x+platform.w/2)
+    -Math.max(x-width/2,platform.x-platform.w/2));
+  return overlap+1e-7>=width*0.8;
+}
 function finish() {
   const target = platforms[platforms.length-1];
-  if (Math.abs(player.x-target.x) <= target.w/2-12) {
+  if (hasLandingSupport(player.x,target)) {
     const perfect = Math.abs(player.x-target.x)<16;
     score += perfect ? 2 : 1; scoreEl.textContent = score;
     if (score>best) { best=score; bestEl.textContent=best; try { localStorage.setItem(bestKey(),String(best)); } catch {} }
