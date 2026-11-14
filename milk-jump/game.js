@@ -254,7 +254,9 @@ const jumpButton = document.querySelector('#jump');
 let jumpPointer = null;
 jumpButton.addEventListener('pointerdown',e=>{
   if(e.button!==0 || state!=='ready' || jumpPointer!==null)return;
-  e.preventDefault();jumpPointer=e.pointerId;jumpButton.setPointerCapture(e.pointerId);begin();
+  // 触屏保留浏览器滑动；开始滚动时 pointercancel 会取消蓄力，不会起跳。
+  if(e.pointerType!=='touch')e.preventDefault();
+  jumpPointer=e.pointerId;jumpButton.setPointerCapture(e.pointerId);begin();
 });
 jumpButton.addEventListener('pointerup',e=>{
   if(e.pointerId!==jumpPointer)return;
